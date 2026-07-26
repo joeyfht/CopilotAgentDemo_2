@@ -4,8 +4,20 @@ on:
   push:
     branches:
       - '**'
+    paths:
+      - '**/*.cs'
+      - '**/*.csproj'
+      - '**/*.sln'
+      - '**/*.props'
+      - '**/*.targets'
   pull_request:
     types: [opened, synchronize, reopened]
+    paths:
+      - '**/*.cs'
+      - '**/*.csproj'
+      - '**/*.sln'
+      - '**/*.props'
+      - '**/*.targets'
 
 jobs:
   build-and-test:
