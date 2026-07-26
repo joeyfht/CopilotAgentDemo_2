@@ -25,9 +25,9 @@ body:
       label: Acceptance Criteria
       description: Define what "done" looks like for this feature.
       options:
-        - label: ''
-        - label: ''
-        - label: ''
+        - label: Feature behaves as described in the proposal
+        - label: Unit tests written and passing
+        - label: Documentation updated (if applicable)
 
   - type: textarea
     id: alternatives
