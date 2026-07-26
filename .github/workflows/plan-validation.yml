@@ -1,0 +1,81 @@
+name: Plan Validation
+
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  validate-plan:
+    name: Validate PR Plan
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Resolve PR number
+        id: resolve-pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            echo "pr_number=${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
+          else
+            # On push, find an open PR targeting this branch
+            PR_NUMBER=$(gh pr list \
+              --head "${{ github.ref_name }}" \
+              --state open \
+              --json number \
+              --jq '.[0].number' 2>/dev/null || echo "")
+
+            if [ -z "$PR_NUMBER" ] || [ "$PR_NUMBER" == "null" ]; then
+              echo "No open PR found for branch '${{ github.ref_name }}'. Skipping plan validation."
+              echo "pr_number=" >> "$GITHUB_OUTPUT"
+            else
+              echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
+      - name: Validate plan sections
+        if: steps.resolve-pr.outputs.pr_number != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.resolve-pr.outputs.pr_number }}
+        run: |
+          PR_BODY=$(gh pr view "$PR_NUMBER" --json body --jq '.body')
+
+          REQUIRED_SECTIONS=(
+            "## Summary"
+            "## What Should Be Done"
+            "## Acceptance Criteria"
+            "## Files to Change"
+            "## Out of Scope"
+            "## Notes / Risks"
+          )
+
+          MISSING=()
+          for section in "${REQUIRED_SECTIONS[@]}"; do
+            if ! echo "$PR_BODY" | grep -qF "$section"; then
+              MISSING+=("$section")
+            fi
+          done
+
+          if [ "${#MISSING[@]}" -gt 0 ]; then
+            echo "❌ Plan validation FAILED. The following required sections are missing from the PR description:"
+            printf '   • %s\n' "${MISSING[@]}"
+            echo ""
+            echo "All PRs must include a plan with these exact headings:"
+            printf '   • %s\n' "${REQUIRED_SECTIONS[@]}"
+            exit 1
+          fi
+
+          echo "✅ Plan validation PASSED. All required sections are present."
+
+      - name: Skip notice
+        if: steps.resolve-pr.outputs.pr_number == ''
+        run: echo "No PR to validate on this push — plan validation skipped."
