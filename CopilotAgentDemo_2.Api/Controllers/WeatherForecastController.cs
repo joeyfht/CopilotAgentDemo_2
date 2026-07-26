@@ -7,5 +7,7 @@ namespace CopilotAgentDemo_2.Api.Controllers;
 public class WeatherForecastController : ControllerBase
 {
     [HttpGet]
-    public string Get() => "Sunny";
+    public ActionResult<CurrentWeatherResponse> Get() => Ok(new CurrentWeatherResponse("Sunny"));
 }
+
+public sealed record CurrentWeatherResponse(string Summary);
